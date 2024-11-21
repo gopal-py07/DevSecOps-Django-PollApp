@@ -3,108 +3,104 @@ pipeline {
 
     environment {
         GIT_REPO_URL = 'https://github.com/gopal-py07/CI-CD-Python-Django-Poll-App-Docker-Kubernet-minikube-.git'
-        WORKSPACE_PATH = "${env.WORKSPACE}"
-        DOCKER_COMPOSE_FILE = "${WORKSPACE_PATH}/docker-compose.yml"
+        DOCKER_IMAGE = "gopalghule05/lnx_poll_prj_jenkins:${env.BUILD_NUMBER}"
+        DOCKER_COMPOSE_FILE = "${env.WORKSPACE}/docker-compose.yml"
+        DEPLOYMENT_YML_PATH = "${env.WORKSPACE}/deployment.yml"
         MINIKUBE_PATH = '/usr/local/bin/minikube'
         KUBECTL_PATH = '/usr/local/bin/kubectl'
-        DEPLOYMENT_YML_PATH = 'deployment.yml'
         SERVICE_NAME = 'django-backend-poll-app-jenkins-service'
+        SONARQUBE_SERVER = 'http://your-sonarqube-server-url'
     }
 
     stages {
-        stage('Checkout') {
+        stage('Checkout Code') {
             steps {
-                script {
-                    sh "pwd"
-                    checkout([
-                        $class: 'GitSCM',
-                        branches: [[name: 'master']],
-                        doGenerateSubmoduleConfigurations: false,
-                        extensions: [[$class: 'CleanBeforeCheckout']],
-                        userRemoteConfigs: [[url: env.GIT_REPO_URL]]
-                    ])
+                checkout scm
+            }
+        }
+
+        stage('Code Quality Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh """
+                    sonar-scanner \
+                    -Dsonar.projectKey=django-poll-app \
+                    -Dsonar.sources=src \
+                    -Dsonar.host.url=${SONARQUBE_SERVER} \
+                    -Dsonar.login=$SONAR_AUTH_TOKEN
+                    """
                 }
             }
         }
 
-        stage('Docker Compose') {
+        stage('Build Docker Images') {
             steps {
-                script {
-                    sh "docker-compose -f ${env.DOCKER_COMPOSE_FILE} build --no-cache"
-                    sh "docker-compose -f ${env.DOCKER_COMPOSE_FILE} up -d"
-                }
+                sh "docker-compose -f ${DOCKER_COMPOSE_FILE} build --no-cache"
             }
         }
 
         stage('Push Docker Images to Docker Hub') {
             steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: 'docker-cred', usernameVariable: 'DOCKERHUB_USERNAME', passwordVariable: 'DOCKERHUB_PASSWORD')]) {
-                        sh "docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_PASSWORD"
-                        sh "docker push gopalghule05/lnx_poll_prj_jenkins:1.3"
-                    }
+                withCredentials([usernamePassword(credentialsId: 'docker-cred', usernameVariable: 'DOCKERHUB_USERNAME', passwordVariable: 'DOCKERHUB_PASSWORD')]) {
+                    sh """
+                    docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_PASSWORD
+                    docker tag django-poll-app ${DOCKER_IMAGE}
+                    docker push ${DOCKER_IMAGE}
+                    """
                 }
             }
         }
 
-        /*stage('Check Minikube Status') {
+        stage('Security Scan') {
             steps {
-                script {
-                    def minikubeStatus = sh(script: "${MINIKUBE_PATH} status", returnStatus: true)
-                    
-                    if (minikubeStatus == 0) {
-                        echo "Minikube is running. Skipping this stage."
-                        currentBuild.result = 'SUCCESS'
-                    } else {
-                        echo "Minikube is not running. Starting Minikube..."
-                        sh "${MINIKUBE_PATH} start"
-                    }
+                withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
+                    sh "snyk auth $SNYK_TOKEN"
+                    sh "snyk test"
+                    sh "snyk monitor"
                 }
             }
-        }*/
-        //commentin jenkins file argocd dplyment testing // for jenkins and minkune please uncomment below code and push file at code level not in any folder
-        /*stage('Apply Kubernetes Deployment') {
+        }
+
+        stage('Kubernetes Deployment') {
             steps {
                 script {
+                    sh "${KUBECTL_PATH} apply --dry-run=client -f ${DEPLOYMENT_YML_PATH}"
                     sh "${KUBECTL_PATH} apply -f ${DEPLOYMENT_YML_PATH}"
                 }
             }
         }
 
-        stage('Check Service in Kubernetes') {
+        stage('Expose Kubernetes Service') {
             steps {
                 script {
                     def serviceExists = sh(script: "${KUBECTL_PATH} get service ${SERVICE_NAME}", returnStatus: true)
-                    
-                    if (serviceExists == 0) {
-                        echo "Service ${SERVICE_NAME} exists. Skipping the 'Expose Port' stage."
-                        currentBuild.result = 'SUCCESS' // Mark the build as success
-                    } else {
-                        echo "Service ${SERVICE_NAME} does not exist. Proceeding to the 'Expose Port' stage."
+                    if (serviceExists != 0) {
                         sh "${KUBECTL_PATH} expose deployment ${SERVICE_NAME} --type=LoadBalancer --port=8000"
                     }
                 }
             }
         }
 
-        stage('Open Service in Minikube') {
+        stage('Verify Minikube Service') {
             steps {
                 script {
                     sh "${MINIKUBE_PATH} service list"
                     sh "${MINIKUBE_PATH} service ${SERVICE_NAME}"
-                    //sh "${MINIKUBE_PATH} dashboard --url"
-                    //sh "xdg-open $(minikube service ${SERVICE_NAME} --url)"
                 }
             }
-        }*/
+        }
     }
 
     post {
+        always {
+            echo "Cleaning up resources..."
+            sh "docker-compose -f ${DOCKER_COMPOSE_FILE} down"
+        }
         success {
-            echo 'Code checkout, Docker Compose, image upload, and deployment were successful.'
+            echo "Pipeline executed successfully!"
         }
         failure {
-            echo 'Pipeline failed.'
+            echo "Pipeline failed. Check the logs for details."
         }
     }
 }
