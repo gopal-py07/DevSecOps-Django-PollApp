@@ -25,7 +25,7 @@ pipeline {
                     sh """
                     sudo sonar-scanner \
                     -Dsonar.projectKey=pollpp \
-                    -Dsonar.sources=${env.WORKSPACE}/decSecops-Pollapp \
+                    -Dsonar.sources=${env.WORKSPACE} \
                     -Dsonar.host.url=${SONARQUBE_SERVER} \
                     -Dsonar.login=$SONAR_AUTH_TOKEN
                     """
