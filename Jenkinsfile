@@ -24,7 +24,7 @@ pipeline {
                 withSonarQubeEnv('SonarQube') {
                     sh """
                     sonar-scanner \
-                    -Dsonar.projectKey=django-poll-app \
+                    -Dsonar.projectKey=pollpp \
                     -Dsonar.sources=src \
                     -Dsonar.host.url=${SONARQUBE_SERVER} \
                     -Dsonar.login=$SONAR_AUTH_TOKEN
