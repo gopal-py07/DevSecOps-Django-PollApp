@@ -21,27 +21,15 @@ pipeline {
 
         stage('Code Quality Analysis') {
             steps {
-                script {
-                 sh """
-                    echo 'Running SonarQube Scanner...'
-                        sudo sonar-scanner \
-                            -Dsonar.projectKey=pollpp \
-                            -Dsonar.sources=/var/lib/jenkins/workspace/decSecops-Pollapp \
-                            -Dsonar.host.url=http://172.27.231.128:9000/ \
-                            -Dsonar.token=sqa_b8e2bc75027cd85c1b742928709fd0d0f778994
+                withSonarQubeEnv('SonarQube') {
+                    sh """
+                    sudo sonar-scanner \
+                    -Dsonar.projectKey=pollpp \
+                    -Dsonar.sources=${env.WORKSPACE}/decSecops-Pollapp \
+                    -Dsonar.host.url=${SONARQUBE_SERVER} \
+                    -Dsonar.login=$SONAR_AUTH_TOKEN
                     """
                 }
-                 
-                //withSonarQubeEnv('SonarQube') {
-                   
-                    // sh """
-                    // sonar-scanner \
-                    // -Dsonar.projectKey=pollpp \
-                    // -Dsonar.sources=src \
-                    // -Dsonar.host.url=${SONARQUBE_SERVER} \
-                    // -Dsonar.login=$SONAR_AUTH_TOKEN
-                    // """
-                //}
             }
         }
 
