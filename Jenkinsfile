@@ -24,7 +24,7 @@ pipeline {
                 script {
                  sh """
                     echo 'Running SonarQube Scanner...'
-                        sonar-scanner \
+                        sudo sonar-scanner \
                             -Dsonar.projectKey=pollpp \
                             -Dsonar.sources=/var/lib/jenkins/workspace/decSecops-Pollapp \
                             -Dsonar.host.url=http://172.27.231.128:9000/ \
