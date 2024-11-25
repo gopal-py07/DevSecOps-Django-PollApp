@@ -1,0 +1,295 @@
+    agent any
+ 
+    environment {
+      
+        NEXUS_REPO_DOCKER = "ezxchange_docker_images"
+        VERSION = "tc13.1"
+        NEXUS_CRED_ID = 'nexusCred'
+            GIT_TOKEN = credentials('git_token')
+            NEXUS_CREDENTIALS = credentials('nexusCred')
+        DOCKER_IMAGE_NAME = '172.165.80.22:8089/repository/ezxchange_docker_images/${VERSION}:latest'
+            NEXUS_IP_Docker = '172.164.80.29:8088'
+        NEXUS_URL = "http://172.162.20.22:8088"
+        REPO_ID = "ezxchange_release_store"
+        CURRENT_DATE = new Date().format("yyyyMMdd-HHmmss")
+        GROUP_ID = "${CURRENT_DATE}_tc13_1_Linux"
+        OPT_ID= "${CURRENT_DATE}_tc13_1_Linux"
+        ARTIFACT_ID = "ezxchange"
+        ARTIFACT_FILE = "/opt/artifact.zip"
+        DOCKER_CONTAINER_NAME = "${VERSION}-c1"
+        CMN_SERVER_PATH = "/home/oracle/Development/ezxchange_master_13/Server"
+        CMN_CLINT_PATH = "/home/oracle/Development/ezxchange_master_13/Client"
+        CMN_TC_VERSION = "TC13.1"
+        RECIPIENT_EMAILS = "gopalghule05@gmail.com"
+        STAGE = "NULL"
+    }
+      
+      
+      
+      parameters {
+        string(name: 'DOCKER_IMAGE_NAME', defaultValue: '${VERSION}', description: 'Docker image name')
+        string(name: 'DOCKER_IMAGE_TAG', defaultValue: 'latest', description: 'Docker image tag')
+        string(name: 'NEXUS_REPO_URL', defaultValue: 'http://${NEXUS_IP_Docker}/repository/ezxchange_docker_images/', description: 'Nexus repository URL')
+    }
+    
+ 
+    stages {
+        stage('Build and Push Docker Image') {
+            steps {
+                script {
+                    STAGE = "Build and Push Docker Image"
+                    withCredentials([usernamePassword(credentialsId: NEXUS_CRED_ID, passwordVariable: 'NEXUS_PASSWORD', usernameVariable: 'NEXUS_USERNAME')]) {
+                        def response = sh(script: "curl -u ${NEXUS_USERNAME}:${NEXUS_PASSWORD} ${NEXUS_URL}/service/rest/v1/search?repository=${NEXUS_REPO_DOCKER} | jq -r '.items[].name | split(\"/\") | last'", returnStdout: true).trim()
+                                    echo "${response}"
+                                    
+                                    def lines = response.readLines()
+                                    def im_nex_it
+                                    if (lines != null) {
+                                    for (line in lines) {
+                                        if (line == VERSION) {
+                                 //echo "Processing item: ${line}"
+                                 im_nex_it=line
+                                        }                             
+                                    }
+                                    echo "${im_nex_it}"
+                        }
+                                    env.MY_NEXUS_USERNAME = NEXUS_USERNAME
+                        env.MY_NEXUS_PASSWORD = NEXUS_PASSWORD
+                                    
+                        if (im_nex_it != VERSION) {
+                            def dockerImageName = params.DOCKER_IMAGE_NAME
+                                          def dockerImageTag = params.DOCKER_IMAGE_TAG
+
+                                          // Build the Docker image
+                                          echo "###########Build the Docker image###################"
+                                          sh "docker build --no-cache -t ${dockerImageName}:${dockerImageTag} /home/oracle/${VERSION}"
+
+                                          // Tag the image with Nexus repository URL (corrected)
+                                          sh "docker tag ${dockerImageName}:${dockerImageTag} ${NEXUS_IP_Docker}/repository/ezxchange_docker_images/${dockerImageName}:${dockerImageTag}"
+                                          
+                                        sh "docker login -u ${env.MY_NEXUS_USERNAME} -p ${env.MY_NEXUS_PASSWORD} ${NEXUS_IP_Docker}"
+                                          
+                                          // Push the Docker image to Nexus
+                                          echo "##########Push the Docker image to Nexus#############"
+                                          sh "docker push ${NEXUS_IP_Docker}/repository/${NEXUS_REPO_DOCKER}/${dockerImageName}:${dockerImageTag}"
+                        }
+                    }
+                    
+                }
+            }
+        }
+            
+            stage('Fetch Docker Image') {
+            steps {
+                script {
+                              STAGE = "Fetch Docker Image"
+                              
+                              sh "docker login -u ${env.MY_NEXUS_USERNAME} -p ${env.MY_NEXUS_PASSWORD} ${NEXUS_IP_Docker}"
+                              
+                    echo "############################ Pulling the image from Nexus ############################"
+                              
+                    sh "docker pull ${DOCKER_IMAGE_NAME}"
+                    
+                
+                    
+                }
+            }
+        }
+        
+        stage('Launch Docker Container') {
+            when {
+                expression { currentBuild.result != 'FAILURE' }
+            }
+            steps {
+                script {
+                    STAGE = "Launch Docker Container"
+                    echo "############################ Creating container ############################"
+                    sh "docker run -d --name ${DOCKER_CONTAINER_NAME} ${DOCKER_IMAGE_NAME} tail -f /dev/null"
+                }
+            }
+        }
+
+            
+            stage('Checkout Source Code') {
+            steps {
+                script {
+                        STAGE = "Checkout Source Code"
+                        
+                        sh "docker exec ${DOCKER_CONTAINER_NAME} sh -c 'cd /home/oracle/Development && git clone -b dev https://12600:${GIT_TOKEN}@gitlab.intelizign.com/baseline/ezxchange_master_13.git'"
+                        
+                    
+                }
+            }
+        }
+        
+        stage('Download Dependencies') {
+            steps {
+                script {
+                    
+                    STAGE = "Download Dependencies"
+                    sh "docker exec ${DOCKER_CONTAINER_NAME} sh -c 'cd /opt && curl -u ${env.MY_NEXUS_USERNAME}:${env.MY_NEXUS_PASSWORD} -O ${NEXUS_URL}/repository/tc_ootb/TC13/1/linux/linux.zip && unzip linux.zip'"
+                }
+            }
+        }
+
+            stage('Utilities Build') {
+                  steps {
+                        script {
+                            STAGE = "Utilities Build"
+                              sh "docker exec ${DOCKER_CONTAINER_NAME} sh -c 'cd ${CMN_SERVER_PATH}/Utilities/build_scripts/lnx64 && chmod +x ezx_utility_build.sh LNX64_set_env.sh && ./ezx_utility_build.sh'"
+                        }
+                  }
+            }
+            
+            stage('DLL Build') {
+                  steps {
+                        script {
+                            STAGE = "DLL Build"
+                              sh "docker exec ${DOCKER_CONTAINER_NAME} sh -c 'cd ${CMN_SERVER_PATH}/Build/build_scripts/lnx64 && make -f Makefile all'"
+                        }
+                  }
+            }
+
+            stage('SOA Build') {
+                  steps {
+                        script {
+                            STAGE = "SOA Build"
+                              sh "docker exec ${DOCKER_CONTAINER_NAME} sh -c ' cd ${CMN_SERVER_PATH}/SOA/${CMN_TC_VERSION}/e5ezxchange && mkdir -p /java/libs/ && make client && make sandbox'"
+                        
+                        }
+                  }
+            }
+
+            stage('WEB Build') {
+                  steps {
+                        script {
+                            STAGE = "WEB Build"
+                              sh "docker exec ${DOCKER_CONTAINER_NAME} sh -c 'cd ${CMN_CLINT_PATH}/Web/${CMN_TC_VERSION}/EzXchangeWebAPIs && mvn clean install -DskipTests'"
+                        }
+                  }
+            }
+
+            stage('RAC Build') {
+                  steps {
+                        script {
+                            STAGE = "RAC Build"
+                              sh "docker exec ${DOCKER_CONTAINER_NAME} sh -c 'export ANT_HOME=/opt/apache-ant-1.10.14 && export TC_ROOT=/opt/Siemens/TC && cd ${CMN_CLINT_PATH}/RAC/${CMN_TC_VERSION}/com.intelizign.ezxchnage.admin/build && chmod +x ezx_admin_client_build.sh && ./ezx_admin_client_build.sh'"
+                        }
+                  }
+            }        
+
+        stage('Publish Artifact to Nexus') {
+            steps {
+                script {
+                    STAGE = "Publish Artifact to Nexus"
+                    echo '===============Upload to Nexus ==============================='
+                    def nexusUrl = "${NEXUS_URL}/repository/${REPO_ID}/${GROUP_ID}/${ARTIFACT_ID}/${VERSION}/${ARTIFACT_ID}-${VERSION}.zip"
+                    
+                    sh """
+                        docker exec ${DOCKER_CONTAINER_NAME} sh -c '
+                        
+                        cd /opt/ && mkdir ${OPT_ID} && cd ${OPT_ID}
+                        mkdir Documents preferences utilities Licenses
+                                    mkdir -p tc_data/ezxchange \
+                                       tc_data/soa \
+                                       tc_root/bin \
+                                       tc_root/lang/textserver/en_US \
+                                       tc_root/lib \
+                                       tc_root/portal/plugins \
+                                       thirdparty_library/boost \
+                                       thirdparty_library/lua \
+                                       usecases/Export_Usecases \
+                                       usecases/Import_Usecases \
+                                       usecases/ImportUsecaseUtility \
+                                       RestServer "RestServer/Standalone Application"'
+                     """
+                    sh """
+                    
+                    docker exec ${DOCKER_CONTAINER_NAME} sh -c '
+                    cp ${CMN_SERVER_PATH}/Utilities/x86_64_linux/ezxchange_license_checker /opt/${OPT_ID}/utilities
+                    cp ${CMN_SERVER_PATH}/Utilities/x86_64_linux/ezxchange_import_license_checker /opt/${OPT_ID}/utilities
+                    cp ${CMN_SERVER_PATH}/Utilities/x86_64_linux/ezxchange_export_license_checker /opt/${OPT_ID}/utilities
+                    cp ${CMN_SERVER_PATH}/Utilities/x86_64_linux/ezxchange_import_export_usecases /opt/${OPT_ID}/usecases/ImportUsecaseUtility
+                    cp ${CMN_SERVER_PATH}/SOA/${CMN_TC_VERSION}/e5ezxchange/output/lnx64/jars/* /opt/${OPT_ID}/tc_root/portal/plugins
+                    cp ${CMN_CLINT_PATH}/Web/${CMN_TC_VERSION}/EzXchangeWebAPIs/target/ezxchange.war /opt/${OPT_ID}/RestServer
+                    cp ${CMN_CLINT_PATH}/RAC/${CMN_TC_VERSION}/com.intelizign.ezxchnage.admin/client_binaries/com.intelizign.ezxchange.admin_4.0.6.jar /opt/${OPT_ID}/tc_root/portal/plugins
+                    cd /opt/Siemens/TC/lib
+                    tar -cpzvf libezxchange.tar.gz libezxchange.so.4.0.6.1 libezxchange.so libe5soaezxchange.so
+                    cp -r libezxchange.tar.gz /opt/${OPT_ID}/tc_root/lib
+                    # Remove unnecessary files
+                    #rm -f /opt/${OPT_ID}/tc_root/lib/libezxchange.so.4.0.6.1 /opt/${OPT_ID}/tc_root/lib/libezxchange.so /opt/${OPT_ID}/tc_root/lib/libe5soaezxchange.so
+                    # Create a zip file
+                    cd /opt/
+                    zip -r artifact.zip ${OPT_ID}'
+                    
+                    """
+   
+                   sh """
+                    docker exec ${DOCKER_CONTAINER_NAME} sh -c '
+                        curl -v -u "$NEXUS_CREDENTIALS" \\
+                          -H "Content-Type: application/java-archive" \\
+                          -X PUT \\
+                          --upload-file "$ARTIFACT_FILE" \\
+                          "$nexusUrl" '
+                    """
+                }
+            }
+        } 
+    
+    }
+ 
+        post {
+            
+            always {
+                  // Cleanup or any other code that should run regardless of pipeline success or failure
+                        script {
+                            
+                                    // Check if the container exists
+                                    def containerExists = sh(script: "docker ps -a --format '{{.Names}}' | grep \"^\${DOCKER_CONTAINER_NAME}\$\"", returnStatus: true) == 0
+                        def failureTime = new Date()
+                                    echo "Container exists: ${containerExists}"
+                                    if (containerExists) {
+                                          // Stop and remove the container if it exists
+                                          def rmv_image = env.DOCKER_IMAGE_NAME.replaceAll(/:[^\/]+$/, '')
+                            echo "${rmv_image}"
+                                          sh "docker stop \$DOCKER_CONTAINER_NAME"
+                                          sh "docker rm \$DOCKER_CONTAINER_NAME"
+                                          sh "docker rmi ${rmv_image}"
+                                    }
+               
+                                    if (currentBuild.result == 'FAILURE'){
+                                             emailext (
+                                                            attachLog: true,
+                                                            attachmentsPattern: "/var/lib/jenkins/.jenkins/jobs/tc13.1-ezxchange-linux-latest/builds/${BUILD_NUMBER}/log",
+                                                      body: """Dear Team,
+
+The Jenkins pipeline for project "${JOB_NAME}" has encountered a failure during Build #${BUILD_NUMBER}.
+
+**Failure Details:**
+- Pipeline Name: ${JOB_NAME}
+- Pipeline Status: ${currentBuild.result}
+- Failed Stage: ${STAGE}
+- BuildTimestamp: ${new Date(currentBuild.startTimeInMillis)}
+- Console log : ${BUILD_URL}console
+
+Please review the attached log error details above and take necessary action to address the issue promptly.
+
+Thank you for your attention and cooperation.
+
+Best regards,
+Jenkins Automated Notification System""",
+                                                            compressLog: true,
+                                                            subject: "Pipeline Failed: ${currentBuild.fullDisplayName}",
+                                                            to: "${env.RECIPIENT_EMAILS}",
+                                                            
+                                                )
+
+                                    }
+                        }
+                    
+            }
+
+
+    }
+
+}
