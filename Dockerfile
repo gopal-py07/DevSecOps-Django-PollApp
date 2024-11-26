@@ -18,7 +18,7 @@ WORKDIR /Poll_APPlication
 
 # Copy the current directory contents into the container at /Poll_APPlication
 ADD . /Poll_APPlication
-
+RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 ARG TAG
 ENV TAG=${TAG}
