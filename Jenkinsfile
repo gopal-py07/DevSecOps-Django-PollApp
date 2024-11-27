@@ -41,9 +41,9 @@ pipeline {
 
         stage('Push Docker Images to Docker Hub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'docker-cred', usernameVariable: 'DOCKERHUB_USERNAME', passwordVariable: 'DOCKERHUB_PASSWORD')]) {
+                withCredentials([string(credentialsId: 'docker-token', variable: 'DOCKERHUB_TOKEN')]) {
                     sh """
-                    docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_PASSWORD
+                    echo $DOCKERHUB_TOKEN | docker login -u gopalghule05 --password-stdin
                     docker tag django-poll-app ${DOCKER_IMAGE}
                     docker push ${DOCKER_IMAGE}
                     """

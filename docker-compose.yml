@@ -4,7 +4,6 @@ services:
     build:
       context: .
       args:
-        TAG: ${GITHUB_RUN_NUMBER}
     container_name: lnx_poll_prj_Jenkins
     #image: gopalghule05/lnx_poll_prj_argocd:${GITHUB_RUN_NUMBER}
     image: gopalghule05/lnx_poll_prj_argocd:g1.00
