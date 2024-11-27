@@ -3,7 +3,8 @@ pipeline {
 
     environment {
         GIT_REPO_URL = 'https://github.com/gopal-py07/CI-CD-Python-Django-Poll-App-Docker-Kubernet-minikube-.git'
-        DOCKER_IMAGE = "gopalghule05/lnx_poll_prj_jenkins:${env.BUILD_NUMBER}"
+       //DOCKER_IMAGE = "gopalghule05/lnx_poll_prj_jenkins:${env.BUILD_NUMBER}"
+        DOCKER_IMAGE = "gopalghule05/lnx_poll_prj_jenkins:g1"
         DOCKER_COMPOSE_FILE = "${env.WORKSPACE}/docker-compose.yml"
         DEPLOYMENT_YML_PATH = "${env.WORKSPACE}/deployment.yml"
         MINIKUBE_PATH = '/usr/local/bin/minikube'
@@ -44,7 +45,6 @@ pipeline {
                 withCredentials([string(credentialsId: 'docker-token', variable: 'DOCKERHUB_TOKEN')]) {
                     sh """
                     echo $DOCKERHUB_TOKEN | docker login -u gopalghule05 --password-stdin
-                    docker tag django-poll-app ${DOCKER_IMAGE}
                     docker push ${DOCKER_IMAGE}
                     """
                 }
