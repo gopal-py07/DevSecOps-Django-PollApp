@@ -92,7 +92,7 @@ pipeline {
         stage('Kubernetes Deployment') {
             steps {
                 script {
-                    sh "${KUBECTL_PATH} apply --dry-run=client -f ${DEPLOYMENT_YML_PATH}"
+                    //sh "${KUBECTL_PATH} apply --dry-run=client -f ${DEPLOYMENT_YML_PATH}"
                     sh "${KUBECTL_PATH} apply -f ${DEPLOYMENT_YML_PATH}"
                 }
             }
