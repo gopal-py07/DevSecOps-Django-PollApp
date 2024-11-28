@@ -42,7 +42,8 @@ pipeline {
                         error "Pipeline failed due to SonarQube Quality Gate failure: ${qualityGate.status}"
                     }
                     else {
-                            echo "Quality Gate passed: ${qualityGate.status}"
+                                echo "Quality Gate passed: ${qualityGate.status}"
+                            }    
                 }
             }
         }
