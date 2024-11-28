@@ -11,6 +11,7 @@ pipeline {
         KUBECTL_PATH = '/usr/local/bin/kubectl'
         SERVICE_NAME = 'django-backend-poll-app-jenkins-service'
         SONARQUBE_SERVER = 'http://172.27.231.128:9000/'
+        TRIVY_IMAGE_SCANNER = 'trivy'
     }
 
     stages {
