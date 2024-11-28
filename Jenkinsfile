@@ -74,21 +74,6 @@ pipeline {
             }
         }
 
-        stage('Check Minikube Status') {
-            steps {
-                script {
-                    def minikubeStatus = sh(script: "${MINIKUBE_PATH} status", returnStatus: true)
-                    
-                    if (minikubeStatus == 0) {
-                        echo "Minikube is running. Skipping this stage."
-                        currentBuild.result = 'SUCCESS'
-                    } else {
-                        echo "Minikube is not running. Starting Minikube..."
-                        sh "${MINIKUBE_PATH} start"
-                    }
-                }
-            }
-
         stage('Kubernetes Deployment') {
             steps {
                 script {
