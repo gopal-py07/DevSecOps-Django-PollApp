@@ -10,11 +10,11 @@ RUN mkdir /Poll_APPlication
 # Set the working directory to /Poll_APPlication
 WORKDIR /Poll_APPlication
 
+COPY requirements.txt /Poll_APPlication/
+RUN pip install --no-cache-dir -r requirements.txt
+
 # Copy the current directory contents into the container at /Poll_APPlication
 COPY . /Poll_APPlication
-
-# Install dependencies from requirements.txt without caching
-RUN pip install --no-cache-dir -r requirements.txt
 
 # Argument for build-time tag
 ARG TAG
