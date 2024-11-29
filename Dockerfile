@@ -7,8 +7,7 @@ ENV PYTHONUNBUFFERED 1
 RUN apk update && apk upgrade --no-cache && apk add --no-cache \
     bash \
     libssl3 \
-    sqlite && \
-    mkdir /Poll_APPlication
+    sqlite
 
 # Create a root directory for the project inside the container
 RUN mkdir /Poll_APPlication
