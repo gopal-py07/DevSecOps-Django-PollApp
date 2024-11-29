@@ -1,0 +1,38 @@
+install kubctl or alise with minikube 
+
+kubectl apply -f /var/lib/jenkins/workspace/decSecops-Pollapp/deployment.yml
+error: error validating "/var/lib/jenkins/workspace/decSecops-Pollapp/deployment.yml": error validating data: failed to download openapi: <html><head><meta http-equiv='refresh' content='1;url=/login?from=%2Fopenapi%2Fv2%3Ftimeout%3D32s'/><script id='redirect' data-redirect-url='/login?from=%2Fopenapi%2Fv2%3Ftimeout%3D32s' src='/static/298d4a91/scripts/redirect.js'></script></head><body style='background-color:white; color:white;'>
+Authentication required
+<!--
+-->
+
+</body></html>; if you choose to ignore these errors, turn validation off with --validate=false
+gopal@INPUN0239NB:~/devsecops$ kubectl config view
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://kubernetes.docker.internal:6443
+  name: docker-desktop
+contexts:
+- context:
+    cluster: docker-desktop
+    user: docker-desktop
+  name: docker-desktop
+current-context: ""
+kind: Config
+preferences: {}
+users:
+- name: docker-desktop
+  user:
+    client-certificate-data: DATA+OMITTED
+    client-key-data: DATA+OMITTED
+gopal@INPUN0239NB:~/devsecops$ kubectl config use-context docker-desktop
+Switched to context "docker-desktop".
+gopal@INPUN0239NB:~/devsecops$ kubectl config current-context
+docker-desktop
+gopal@INPUN0239NB:~/devsecops$ kubectl get nodes
+NAME             STATUS   ROLES           AGE   VERSION
+docker-desktop   Ready    control-plane   21h   v1.30.2
+gopal@INPUN0239NB:~/devsecops$ kubectl apply -f /var/lib/jenkins/workspace/decSecops-Pollapp/deployment.yml
+deployment.apps/django-poll-app created
