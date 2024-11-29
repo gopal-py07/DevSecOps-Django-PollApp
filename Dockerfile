@@ -1,8 +1,10 @@
 # Dockerfile
 
 FROM python:3.11.3-alpine
-
-
+RUN apk update && apk add --upgrade \
+    libssl3=3.1.4-r0 \
+    sqlite-libs=3.41.2-r3 \
+    busybox=1.36.1-r1
 # Allows docker to cache installed dependencies between builds
 
 # The enviroment variable ensures that the python output is set straight
