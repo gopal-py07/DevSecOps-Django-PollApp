@@ -4,13 +4,10 @@ FROM python:3.11.3-alpine
 # Ensure Python output is not buffered
 ENV PYTHONUNBUFFERED 1
 
-RUN apk update && apk upgrade --no-cache
-
-# Install dependencies required for your app
-RUN apk add --no-cache \
+RUN apk update && apk upgrade --no-cache && apk add --no-cache \
+    bash \
     libssl3 \
-    sqlite \
-    bash
+    sqlite
 
 # Create a root directory for the project inside the container
 RUN mkdir /Poll_APPlication
