@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         GIT_REPO_URL = 'https://github.com/gopal-py07/CI-CD-Python-Django-Poll-App-Docker-Kubernet-minikube-.git'
-        //DOCKER_IMAGE = "gopalghule05/lnx_poll_prj_jenkins:${env.BUILD_NUMBER}"
+       //DOCKER_IMAGE = "gopalghule05/lnx_poll_prj_jenkins:${env.BUILD_NUMBER}"
         DOCKER_IMAGE = "gopalghule05/lnx_poll_prj_argocd:g1"
         DOCKER_COMPOSE_FILE = "${env.WORKSPACE}/docker-compose.yml"
         DEPLOYMENT_YML_PATH = "${env.WORKSPACE}/deployment.yml"
@@ -26,16 +26,15 @@ pipeline {
             steps {
                 withSonarQubeEnv('SonarQube') {
                     sh """
-                    sonar-scanner \
-                        -Dsonar.projectKey=pollpp \
-                        -Dsonar.sources=${env.WORKSPACE} \
-                        -Dsonar.host.url=${SONARQUBE_SERVER} \
-                        -Dsonar.login=$SONAR_AUTH_TOKEN
+                    sudo sonar-scanner \
+                    -Dsonar.projectKey=pollpp \
+                    -Dsonar.sources=${env.WORKSPACE} \
+                    -Dsonar.host.url=${SONARQUBE_SERVER} \
+                    -Dsonar.login=$SONAR_AUTH_TOKEN
                     """
                 }
             }
         }
-
         stage('SonarQube Quality Gate') {
             steps {
                 echo "Checking SonarQube Quality Gate..."
@@ -43,9 +42,10 @@ pipeline {
                     def qualityGate = waitForQualityGate()
                     if (qualityGate.status != 'OK') {
                         error "Pipeline failed due to SonarQube Quality Gate failure: ${qualityGate.status}"
-                    } else {
-                        echo "Quality Gate passed: ${qualityGate.status}"
                     }
+                    else {
+                                echo "Quality Gate passed: ${qualityGate.status}"
+                            }    
                 }
             }
         }
@@ -55,7 +55,6 @@ pipeline {
                 sh "docker-compose -f ${DOCKER_COMPOSE_FILE} build --no-cache"
             }
         }
-
         stage('Scan Docker Image') {
             steps {
                 echo "Scanning Docker image for vulnerabilities..."
@@ -75,11 +74,11 @@ pipeline {
                 }
             }
         }
-
         // stage('Check Minikube Status') {
         //     steps {
         //         script {
         //             def minikubeStatus = sh(script: "${MINIKUBE_PATH} status", returnStatus: true)
+                    
         //             if (minikubeStatus == 0) {
         //                 echo "Minikube is running. Skipping this stage."
         //                 currentBuild.result = 'SUCCESS'
@@ -125,11 +124,17 @@ pipeline {
             steps {
                 script {
                     echo "Listing Kubernetes Services..."
+                    
+                    // Execute the kubectl command
                     def result = sh(script: "kubectl get services", returnStdout: true).trim()
+                    
+                    // Print the result in the pipeline logs
                     echo "Kubernetes Services:\n${result}"
                 }
             }
         }
+
+
     }
 
     post {
