@@ -9,7 +9,8 @@ pipeline {
         DEPLOYMENT_YML_PATH = "${env.WORKSPACE}/deployment.yml"
         MINIKUBE_PATH = '/usr/local/bin/minikube'
         KUBECTL_PATH = '/usr/local/bin/kubectl'
-        SERVICE_NAME = 'django-backend-poll-app-jenkins-service'
+        //SERVICE_NAME = 'django-backend-poll-app-jenkins-service'
+        SERVICE_NAME = 'django-poll-app'
         SONARQUBE_SERVER = 'http://172.27.231.128:9000/'
         TRIVY_IMAGE_SCANNER = 'trivy'
     }
@@ -110,16 +111,27 @@ pipeline {
             }
         }
 
-        stage('Verify Minikube Service') {
+        // stage('Verify Minikube Service') {
+        //     steps {
+        //         script {
+        //             sh "${MINIKUBE_PATH} service list"
+        //             sh "${MINIKUBE_PATH} service ${SERVICE_NAME}"
+        //         }
+        //     }
+        // }
+        stage('List Kubernetes Services') {
             steps {
                 script {
-                    sh "${MINIKUBE_PATH} service list"
-                    sh "${MINIKUBE_PATH} service ${SERVICE_NAME}"
+                    echo "Listing Kubernetes Services..."
+                    
+                    // Execute the kubectl command
+                    def result = sh(script: "kubectl get services", returnStdout: true).trim()
+                    
+                    // Print the result in the pipeline logs
+                    echo "Kubernetes Services:\n${result}"
                 }
-            }
         }
     }
-
     post {
         always {
             echo "Cleaning up resources..."
