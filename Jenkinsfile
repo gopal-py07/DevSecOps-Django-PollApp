@@ -93,7 +93,8 @@ pipeline {
             steps {
                 script {
                     //sh "${KUBECTL_PATH} apply --dry-run=client -f ${DEPLOYMENT_YML_PATH}"
-                    sh "${KUBECTL_PATH} apply -f ${DEPLOYMENT_YML_PATH} --validate=false"
+                    //sh "${KUBECTL_PATH} apply -f ${DEPLOYMENT_YML_PATH} --validate=false"
+                    sh "kubectl apply -f ${DEPLOYMENT_YML_PATH}"
                 }
             }
         }
